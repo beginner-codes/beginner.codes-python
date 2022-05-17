@@ -26,7 +26,7 @@ class Result:
 def test(challenge: int, solution_func):
     tests = _get_tests(challenge)
     results = _run_tests(tests, solution_func)
-    _show_results(results, len(tests))
+    _show_results(challenge, results, len(tests))
 
 
 def _get_tests(challenge: int) -> list[dict]:
@@ -57,7 +57,7 @@ def _run_tests(tests: list[dict], solution_func) -> list[Result]:
     return results
 
 
-def _show_results(results: list[Result], total_tests: int):
+def _show_results(challenge: int, results: list[Result], total_tests: int):
     failures = 0
     for result in results:
         if result.status == StatusEnum.FAILED:
@@ -70,8 +70,11 @@ def _show_results(results: list[Result], total_tests: int):
             print(f"Test {result.index} failed:  {result.got!r}")
             failures += 1
 
-    print("---- Results ----")
+    if failures:
+        print()
+
+    print(f"---- Challenge {challenge} Results ----")
     print(f"{total_tests - failures} passed, {failures} failed")
 
-    if failures == 0:
+    if not failures:
         print("\n**** Great job!!! ****")
