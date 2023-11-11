@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Any, Union
+from typing import Any, Optional
 from requests import Response
 from rich.markdown import Markdown
 from rich.console import Console
@@ -29,6 +29,20 @@ class Result:
     status: StatusEnum = field(default=StatusEnum.SUCCESS)
 
 
+USAGE = """# **USAGE** 
+```py
+test(challenge: int, your_function: func, description: bool, examples: bool) 
+---
+test(458, your_function)   # runs all tests cases on your function  
+test(458, your_function, description=True)  # adds the test description in the terminal
+test(458, your_function, examples=True)  # adds test examples in the terminal
+test(458, your_function, True, True)  # adds both description and examples
+test(458, description=True)  # prints only description without running tests
+test(458, examples=True)  # same as above but with examples
+``` 
+"""
+
+
 def build_table():
     _t = Table(title='[bold]Test Results[/bold]', highlight=True, box=box.MINIMAL)
     _t.add_column("#:", justify='right')
@@ -37,29 +51,34 @@ def build_table():
     return _t
 
 
-def test(challenge: int, solution_func, description: bool = False, examples: bool = False):
+def test(challenge: int, solution_func: Optional = None, description: bool = False, examples: bool = False):
     console = Console(theme=Theme({'numbers': 'blue', 'expected': 'green', 'got': 'red', 'final': 'yellow'}))
 
-    ### These functions must be protected to ensure no CHEATING happens. ###
-    def _fetch_data(url:str) -> Union[Response, str]:
-        _r = requests.get(url.replace('XXXX', str(challenge)))
+    # These functions must be protected to ensure no CHEATING happens. #
+    def _fetch_data(url: str) -> Response:
+        _r = requests.get(url)
         if _r.status_code == 404:
             raise ChallengeNotFound(f"Challenge {challenge} is not found")
         return _r
 
     def _get_tests(challenge: int) -> list[dict]:
-        url = "https://raw.githubusercontent.com/beginner-codes/challenges/main/weekday/test_cases_XXXX.json"
+        url = f"https://raw.githubusercontent.com/beginner-codes/challenges/main/weekday/test_cases_{challenge}.json"
         response = _fetch_data(url)
         return response.json()
 
     def _get_info(challenge: int, description: bool, examples: bool) -> str:
-        url = "https://raw.githubusercontent.com/beginner-codes/challenges/main/weekday/challenge_XXXX.md"
+        url = f"https://raw.githubusercontent.com/beginner-codes/challenges/main/weekday/challenge_{challenge}.md"
+        if not any([description, examples]):
+            return USAGE
         result = ''
         if description or examples:
             info = _fetch_data(url)
             try:
-                result += info.text.split('##')[0] if description else ''
-                result += '# ' + info.text.split('# ')[2].replace('#','') if examples else ''
+                if description:
+                    result += info.text.split('##')[0]
+                if examples:
+                    result += '# ' + info.text.split('# ')[2].replace('#', '')
+
             except IndexError as e:
                 result += e
         return result + '***'
@@ -105,13 +124,19 @@ def test(challenge: int, solution_func, description: bool = False, examples: boo
         if failures:
             console.print(results_table)
 
-        console.print(f"---- Challenge {challenge} Results ----", style='final')
-        console.print(f"[expected]{total_tests - failures}[/expected] passed, [got]{failures}[/got] failed")
+        if total_tests:
+            console.print(f"---- Challenge {challenge} Results ----", style='final')
+            console.print(f"[expected]{total_tests - failures}[/expected] passed, [got]{failures}[/got] failed")
 
-        if not failures:
-            console.print("\n[expected][bold]**** Great job!!! ****")
+            if not failures:
+                console.print("\n[expected][bold]**** Great job!!! ****")
 
-    tests = _get_tests(challenge)
+    if solution_func:
+        tests = _get_tests(challenge)
+        results = _run_tests(tests, solution_func)
+    else:
+        results = []
+        tests = []
+
     info = _get_info(challenge, description, examples)
-    results = _run_tests(tests, solution_func)
     _show_results(challenge, results, len(tests), info)
