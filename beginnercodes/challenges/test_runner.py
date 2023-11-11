@@ -68,8 +68,6 @@ def test(challenge: int, solution_func: Optional = None, description: bool = Fal
 
     def _get_info(challenge: int, description: bool, examples: bool) -> str:
         url = f"https://raw.githubusercontent.com/beginner-codes/challenges/main/weekday/challenge_{challenge}.md"
-        if not any([description, examples]):
-            return USAGE
         result = ''
         if description or examples:
             info = _fetch_data(url)
@@ -135,8 +133,11 @@ def test(challenge: int, solution_func: Optional = None, description: bool = Fal
         tests = _get_tests(challenge)
         results = _run_tests(tests, solution_func)
     else:
-        results = []
         tests = []
+        results = []
+    if any([solution_func, examples, description]):
+        info = _get_info(challenge, description, examples)
+    else:
+        info = USAGE
 
-    info = _get_info(challenge, description, examples)
     _show_results(challenge, results, len(tests), info)
